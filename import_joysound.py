@@ -67,6 +67,7 @@ for block in js.lyrics.blocks:
         char.left = x
         x += char.width
         char.right = x
+        char.furis = []
         char.furi = None
         if char.char != " ":
             char_pos[(char.left + char.right) // 2] = char
@@ -77,6 +78,7 @@ for block in js.lyrics.blocks:
 
     # assign furigana
     for furi in block.furi:
+        furi.assigned = False
         furi.left = furi.xpos + block.xpos
         # guess that furigana width per char is 24
         furi.right = furi.left + 24 * len(furi.char)
@@ -92,10 +94,22 @@ for block in js.lyrics.blocks:
                 if pos in char_pos:
                     if not is_furiganable(char_pos[pos].char):
                         break
-                    char_pos[pos].furi = furi
+                    char_pos[pos].furis.append((dx, furi))
             else:
                 continue
             break
+
+    # figure out best fit furigana group for each char
+    for i, char in enumerate(block.chars):
+        if char.furis:
+            char.furis.sort(key=lambda x: x[0])
+            char.furi = char.furis[0][1]
+            char.furi.assigned = True
+
+    for furi in block.furi:
+        if not furi.assigned:
+            print("WARNING: furi block '%s' unassigned (in '%s')",
+                  furi.char, "".join(i.char for i in block.chars))
 
     # merge characters together that are from the same furigana or beat
     # does not merge trailing combining chars after a furigana group
@@ -194,7 +208,7 @@ for block in js.lyrics.blocks:
 
 def get_color(c):
     r,g,b = js.lyrics.colors[c]
-    return "%02x%02x%02x" % (r*255/31, g*255/31, b*255/31)
+    return "%02x%02x%02x" % (r*255//31, g*255//31, b*255//31)
 
 for style, st_code in sorted(list(style_map.items()), key=lambda x: x[1]):
     data = OrderedDict([

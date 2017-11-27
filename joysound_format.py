@@ -2,10 +2,10 @@
 
 import json, base64, sys
 
-from construct import Struct, ULInt8, ULInt16, ULInt32, Const, Field, Pointer, CString, Adapter, Array, Range, GreedyRange, PrefixedArray, Magic, RepeatUntil, Anchor, ListContainer
+from construct import Struct, Int8ul, Int16ul, Int32ul, Pointer, CString, Adapter, Array, Range, GreedyRange, PrefixedArray, Const, RepeatUntil, ListContainer, Tell
 
-def CJString(name):
-    return CString(name, encoding="sjis")
+def CJString(*args, **kwargs):
+    return CString(*args, **kwargs, encoding="sjis")
 
 class SJIS16StringAdapter(Adapter):
     def _encode(self, obj, context):
@@ -31,8 +31,8 @@ class SJIS16StringAdapter(Adapter):
                 sj.append(c & 0xff)
         return sj.decode("sjis")
 
-def SJISString(name, count):
-    return SJIS16StringAdapter(Array(count, ULInt16(name)))
+def SJISString(count):
+    return SJIS16StringAdapter(Array(count, Int16ul))
 
 class PrettyListAdapter(Adapter):
     def _encode(self, obj, context):
@@ -52,81 +52,83 @@ class RGB15Adapter(Adapter):
     def _decode(self, obj, context):
         return obj >> 10, (obj >> 5) & 0x1f, obj & 0x1f
 
-def RGB15(name):
-    return RGB15Adapter(ULInt16(name))
+RGB15 = RGB15Adapter(Int16ul)
 
 def ShortByteArray(size, name):
-    return ShortListAdapter(Array(size, ULInt8(name)))
+    return ShortListAdapter(Array(size, Int8ul(name)))
 
-JoysoundFile = Struct("Joysound File",
-    Magic(b"JOY-02"),
-    ULInt32("off_metadata"),
-    ULInt32("off_lyrics"),
-    ULInt32("off_timing"),
-    ULInt32("vol_up_time"),
+JoysoundFile = Struct(
+    Const(b"JOY-02"),
+    "off_metadata" / Int32ul,
+    "off_lyrics" / Int32ul,
+    "off_timing" / Int32ul,
+    "vol_up_time" / Int32ul,
     Pointer(lambda ctx: ctx.off_metadata,
-        Struct("metadata",
-            ULInt8("type"),
-            ULInt8("subtype"),
-            ULInt16("off_title"),
-            ULInt16("off_artist"),
-            ULInt16("off_writer"),
-            ULInt16("off_composer"),
-            ULInt16("off_title_kana"),
-            ULInt16("off_artist_kana"),
-            ULInt16("off_jasrac_code"),
-            ULInt16("off_sample"),
-            ULInt16("duration"),
-            ULInt32("vocal_tracks"),
-            ULInt32("rhythm_tracks"),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_title, CJString("title")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_artist, CJString("artist")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_writer, CJString("writer")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_composer, CJString("composer")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_title_kana, CJString("title_kana")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_artist_kana, CJString("artist_kana")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_jasrac_code, CJString("jasrac_code")),
-            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_sample, CJString("sample")),
+        "metadata" / Struct(
+            "type" / Int8ul,
+            "subtype" / Int8ul,
+            "off_title" / Int16ul,
+            "off_artist" / Int16ul,
+            "off_writer" / Int16ul,
+            "off_composer" / Int16ul,
+            "off_title_kana" / Int16ul,
+            "off_artist_kana" / Int16ul,
+            "off_jasrac_code" / Int16ul,
+            "off_sample" / Int16ul,
+            "duration" / Int16ul,
+            "vocal_tracks" / Int32ul,
+            "rhythm_tracks" / Int32ul,
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_title, "title" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_artist, "artist" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_writer, "writer" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_composer, "composer" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_title_kana, "title_kana" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_artist_kana, "artist_kana" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_jasrac_code, "jasrac_code" / CJString()),
+            Pointer(lambda ctx: ctx._.off_metadata + ctx.off_sample, "sample" / CJString()),
         )
     ),
     Pointer(lambda ctx: ctx.off_lyrics,
-        Struct("lyrics",
-            Array(15, RGB15("colors")),
-            PrettyListAdapter(RepeatUntil(lambda obj, ctx: obj.end_off >= ctx._.off_timing,
-                Struct("blocks",
-                    ULInt16("size"),
-                    ULInt16("flags"),
-                    ULInt16("xpos"),
-                    ULInt16("ypos"),
-                    ULInt8("pre_fill"),
-                    ULInt8("post_fill"),
-                    ULInt8("pre_border"),
-                    ULInt8("post_border"),
-                    PrefixedArray(
-                        Struct("chars",
-                            ULInt8("font"),
-                            SJISString("char", 1),
-                            ULInt16("width")
-                        ), length_field=ULInt16("count")
+        "lyrics" / Struct(
+            "colors" / Array(15, RGB15),
+            PrettyListAdapter(RepeatUntil(lambda obj, list, ctx: obj.end_off >= ctx._.off_timing,
+                "blocks" / Struct(
+                    "size" / Int16ul,
+                    "flags" / Int16ul,
+                    "xpos" / Int16ul,
+                    "ypos" / Int16ul,
+                    "pre_fill" / Int8ul,
+                    "post_fill" / Int8ul,
+                    "pre_border" / Int8ul,
+                    "post_border" / Int8ul,
+                    "chars" / PrefixedArray(
+                        "count" / Int16ul,
+                        Struct(
+                            "font" / Int8ul,
+                            "char" / SJISString(1),
+                            "width" / Int16ul
+                        )
                     ),
-                    PrefixedArray(
-                        Struct("furi",
-                            ULInt16("length"),
-                            ULInt16("xpos"),
-                            SJISString("char", lambda ctx: ctx.length),
-                        ), length_field=ULInt16("furi_count")
+                    "furi" / PrefixedArray(
+                        "furi_count" / Int16ul,
+                        Struct(
+                            "length" / Int16ul,
+                            "xpos" / Int16ul,
+                            "char" / SJISString(lambda ctx: ctx.length),
+                        )
                     ),
-                    Anchor("end_off")
+                    "end_off" / Tell
                 )
             ))
         )
     ),
     Pointer(lambda ctx: ctx.off_timing,
         PrettyListAdapter(GreedyRange(
-            Struct("timing",
-                ULInt32("time"),
-                ShortListAdapter(PrefixedArray(
-                    ULInt8("payload"), length_field=ULInt8("size")
+            "timing"/ Struct(
+                "time" / Int32ul,
+                "payload" / ShortListAdapter(PrefixedArray(
+                    "size" / Int8ul,
+                    "payload" / Int8ul
                 ))
             )
         ))
