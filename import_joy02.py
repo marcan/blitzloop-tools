@@ -261,6 +261,13 @@ class Joy02Importer(object):
         if times:
             block.beat_time = times
 
+        block_idx += 1
+        while block_idx < len(self.lyrics.blocks):
+            block = self.lyrics.blocks[block_idx]
+            assert block.flags == 0xff
+            block.beat_time = [t1]
+            block_idx += 1
+
         for block in self.lyrics.blocks:
             timing = [Decimal("%.3f" % i) for i in block.beat_time]
             #print(hex(block.flags), block.source)

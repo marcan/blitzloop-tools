@@ -21,12 +21,31 @@ def get_bitmap(char):
     return bitmap
 
 CHARMAP = {
-    0x121: " ",
-    0x128: " ",
-    0x130: " ",
-    0x134: " ",
-    0xa477: "ー",
+    0xa177: "ー",
+    0xa220: " ",
+    0xa477: "ー", # furigana
+    0xa521: "♠", # smaller?
+    0xa522: "♥", # smaller?
+    0xa66a: "♡",
+    0xa66b: "♥",
+    0xa66c: "♢",
+    0xa66d: "♦",
+    0xa66e: "♧",
+    0xa66f: "♣",
+    0xa924: "ä",
+    0xa926: "ü",
+    0xa931: "è",
+    0xa932: "é",
+    0xa933: "à",
+    0xa935: "í",
+    0xa936: "ò",
+    0xa938: "ù",
     0xad21: "・",
+    0xad28: "溢", # JIS2004 form
+    0xad2c: "錆", # JIS2004 form
+    0xad35: "㊙",
+    0xae65: "･", # maybe?
+    0xae66: "・", # maybe?
 }
 
 class JoyU2Importer(Joy02Importer):
@@ -46,6 +65,10 @@ class JoyU2Importer(Joy02Importer):
         code = char.code
         if code in CHARMAP:
             return CHARMAP[code]
+        elif 0x20 <= code <= 0x7f:  # the real ASCII
+            return chr(code)
+        elif 0x121 <= code <= 0x15f:  # varying width spaces
+            return " "
         elif 0xa021 <= code <= 0xa073:  # hiragana
             return chr(code - 0xa020 + 0x3040)
         elif 0xa121 <= code <= 0xa176:  # katagana
@@ -54,13 +77,16 @@ class JoyU2Importer(Joy02Importer):
             return chr(code - 0xa320 + 0x3040)
         elif 0xa421 <= code <= 0xa476:  # katagana (furigana)
             return chr(code - 0xa420 + 0x30a0)
-        elif 0xa820 <= code <= 0xa87f:  # ASCII
+        elif 0xa820 <= code <= 0xa87f:  # some other ASCII
             return chr(code - 0xa800)
+        elif 0xab20 <= code <= 0xab7f:  # ASCII again?
+            return chr(code - 0xab00)
         elif 0x8000 <= code <= 0x9fff or 0xe000 <= code <= 0xffff:
             sj = bytes([code >> 8, code & 0xff])
             return sj.decode("sjis")
         else:
-            raise Exception("Unmapped character code 0x%04x. Bitmap:\n%s\n" % (code, get_bitmap(char)))
+            raise Exception("Unmapped character code 0x%04x.\nDimensions: %dx%d (adv:%d).\nBitmap:\n%s\n" % (
+                code, char.width, char.height, char.advance, get_bitmap(char)))
 
     def get_char_width(self, c):
         return self.font.chars[c.char].char.advance
@@ -73,7 +99,7 @@ class JoyU2Importer(Joy02Importer):
 
         super().import_timing()
 
-NAMES = ["Percussion", "Melody", "Ch3", "Ch4", "Ch5"]
+NAMES = ["Percussion", "Melody", "Vocal", "Ch4", "Ch5"]
 
 if __name__ == "__main__":
     with open(sys.argv[1], "rb") as fd:
@@ -132,8 +158,8 @@ if __name__ == "__main__":
     song.song["fade_out"] = "0"
     song.song["volume"] = 1.0
     song.song["channels"] = len(streams) - 1
-    song.song["channel_names"] = NAMES[:len(streams) - 1]
-    song.song["channel_defaults"] = ",".join((["5"] + ["10"] * len(streams))[:len(streams) - 1][::-1])
+    song.song["channel_names"] = ",".join(NAMES[:len(streams) - 1])
+    song.song["channel_defaults"] = ",".join((["10"] + ["5"] + ["10"] * len(streams))[:len(streams) - 1])
 
     with open(os.path.join(destdir, "song.blitz"), "wb") as fd:
         fd.write(song.dump().encode("utf-8"))

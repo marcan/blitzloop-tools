@@ -14,7 +14,7 @@ def fm(m):
 
 for song in song_database.songs:
     print("=== %s ===" % fm(song.meta["title"]))
-    print("By %s - %s" % (fm(song.meta["artist"]), fm(song.meta["album"])))
+    print("By %s - %s" % (fm(song.meta["artist"]), fm(song.meta.get("album",""))))
     if "seenon" in song.meta:
         print("From %s" % fm(song.meta["seenon"]))
     print()
