@@ -101,6 +101,12 @@ class JoyU2Importer(Joy02Importer):
 
 NAMES = ["Percussion", "Melody", "Vocal", "Ch4", "Ch5"]
 
+FULLWIDTH_TO_HALFWIDTH = {
+    ord("　"): ord(" ")
+}
+for i in range(0x21, 0x7f):
+    FULLWIDTH_TO_HALFWIDTH[i + 0xfee0] = i
+
 if __name__ == "__main__":
     with open(sys.argv[1], "rb") as fd:
         ujk = UJKFile.parse(fd.read())
@@ -114,6 +120,12 @@ if __name__ == "__main__":
     # Lol timing is off in the source files
     song.timing.add(0.2, 0)
     song.timing.add(1.2, 1)
+
+    meta = ujk.lyrics.value.metadata
+    meta.title = meta.title.translate(FULLWIDTH_TO_HALFWIDTH)
+    meta.artist = meta.artist.translate(FULLWIDTH_TO_HALFWIDTH)
+    meta.writer = meta.writer.translate(FULLWIDTH_TO_HALFWIDTH)
+    meta.composer = meta.composer.translate(FULLWIDTH_TO_HALFWIDTH)
 
     importer = JoyU2Importer(ujk, song)
     importer.import_all()
