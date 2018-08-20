@@ -144,10 +144,13 @@ if __name__ == "__main__":
             fd.write(data)
         cmd += ["-i", path]
 
+    filters = ["[%d]apad[p%d]" % (i, i) for i in range(1, len(streams))]
+    filters.append("[0]" +
+                   "".join("[p%d]" % i for i in range(1, len(streams))) +
+                   ("amerge=inputs=%d[aout]" % len(streams)))
+
     cmd += [
-        "-filter_complex",
-        "".join("[%d:a]" % i for i in range(len(streams))) +
-        "amerge=inputs=%d[aout]" % len(streams),
+        "-filter_complex", ";".join(filters),
         "-map", "[aout]", os.path.join(destdir, "audio.opus")
     ]
 
