@@ -274,7 +274,7 @@ class Joy02Importer(object):
             compound = Compound(self.song.timing)
             compound.start = timing[0]
             compound.timing = [timing[i] - timing[i - 1] for i in range(1, len(timing))]
-            compound[block.st_code] = JapaneseMolecule(block.source)
+            compound[block.st_code] = JapaneseMolecule(block.source.strip())
             if block.flags != 0xff:
                 assert compound[block.st_code].steps == len(compound.timing)
             else:
