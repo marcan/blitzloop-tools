@@ -29,10 +29,8 @@ parser = util.get_argparser()
 parser.add_argument(
     'songpath', metavar='SONGPATH', help='path to the song file')
 parser.add_argument(
-    '--show-timings', dest='st', action='store_true',
-    help='show mpv timings')
-parser.add_argument(
-    '--offset', type=float, default=0.0, help='song offset')
+    '--video', dest='video', action='store_true',
+    help='also render background video')
 parser.add_argument(
     '--width', type=int, default=1280, help='render width')
 parser.add_argument(
@@ -47,11 +45,10 @@ parser.add_argument(
     'ffmpeg_opts', metavar='OPTS', nargs=argparse.REMAINDER, help='ffmpeg options')
 opts = util.get_opts()
 
-print(opts.ffmpeg_opts)
-
 opts.display = "surfaceless"
 opts.mpv_ao = "null"
-opts.mpv_vo = "null"
+if not opts.video:
+    opts.mpv_vo = "null"
 
 s = song.Song(opts.songpath)
 
@@ -63,14 +60,24 @@ renderer = graphics.get_renderer().KaraokeRenderer(display)
 layout = layout.SongLayout(s, list(s.variants.keys())[opts.variant], renderer)
 
 # Use mpv to get duration only
-mpv = mpvplayer.Player(display)
+mpv = mpvplayer.Player(display, rendering=True)
 mpv.load_song(s)
 duration = mpv.duration or mpv.file_duration
-mpv.shutdown()
+if not opts.video:
+    mpv.shutdown()
 print("Song duration: %f" % duration)
 
 song_time = 0
-ffmpeg = subprocess.Popen([
+
+pre_opts = []
+post_opts = opts.ffmpeg_opts
+
+if "--" in post_opts:
+    idx = post_opts.index("--")
+    pre_opts = post_opts[:idx]
+    post_opts = post_opts[idx + 1:]
+
+args = [
     "ffmpeg",
     "-c:v", "rawvideo",
     "-f", "rawvideo",
@@ -78,15 +85,25 @@ ffmpeg = subprocess.Popen([
     "-s", "%dx%d" % (opts.width, opts.height),
     "-r", "%f" % opts.fps,
     "-i", "pipe:",
+] + pre_opts + [
     "-vf", "vflip,unpremultiply=inplace=1",
-    ] + opts.ffmpeg_opts, stdin=subprocess.PIPE)
+] + post_opts
+
+print(" ".join(args))
+
+ffmpeg = subprocess.Popen(args, stdin=subprocess.PIPE)
 
 buf = ctypes.create_string_buffer(opts.width * opts.height * 4)
 
 def render():
     global song_time
     try:
+        mpv.play()
         while song_time < duration:
+            if opts.video:
+                mpv.draw()
+                mpv.poll()
+                mpv.draw_fade(song_time)
             renderer.draw(song_time + opts.sync, layout)
             gl.glFinish()
             gl.glReadBuffer(gl.GL_BACK)
@@ -96,11 +113,15 @@ def render():
             print("\r%.02f%%  " % (100 * song_time / duration), end=' ')
             song_time += 1.0 / opts.fps
             yield None
+            if opts.video:
+                mpv.flip()
     except Exception as e:
         print(e)
     finally:
         ffmpeg.stdin.close()
         ffmpeg.wait()
+        if opts.video:
+            mpv.shutdown()
         os._exit(0)
 
 pause = False
