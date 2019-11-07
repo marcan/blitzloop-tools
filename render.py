@@ -86,7 +86,7 @@ args = [
     "-r", "%f" % opts.fps,
     "-i", "pipe:",
 ] + pre_opts + [
-    "-vf", "vflip,unpremultiply=inplace=1",
+    "-vf", "vflip,unpremultiply=inplace=1" if not opts.video else "vflip",
 ] + post_opts
 
 print(" ".join(args))
