@@ -175,7 +175,8 @@ class JoysoundProject(object):
                 if prev and page.start < prev.end:
                     prev.end = max(prev.min_end, page.start)
                     if prev and page.start < prev.end:
-                        raise Exception("overlapping lines!")
+                        li = " ".join(repr(v.molecules[0][0].text) for k,v in sorted(lines.items(), reverse=True))
+                        raise Exception("overlapping lines! %r" % (li))
             prev = page
             pages2.append(page)
         
