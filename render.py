@@ -29,8 +29,9 @@ parser = util.get_argparser()
 parser.add_argument(
     'songpath', metavar='SONGPATH', help='path to the song file')
 parser.add_argument(
-    '--video', dest='video', action='store_true',
-    help='also render background video')
+    '--video', dest='video', action='store_true', help='also render background video')
+parser.add_argument(
+    '--audio', dest='audio', action='store_true', help='include song audio')
 parser.add_argument(
     '--width', type=int, default=1280, help='render width')
 parser.add_argument(
@@ -41,6 +42,8 @@ parser.add_argument(
     '--sync', type=float, default=0.3, help='lyrics scroll-ahead time')
 parser.add_argument(
     '--variant', type=int, default=0, help='song variant')
+parser.add_argument(
+    '--length', type=float, help='render only this long')
 parser.add_argument(
     'ffmpeg_opts', metavar='OPTS', nargs=argparse.REMAINDER, help='ffmpeg options')
 opts = util.get_opts()
@@ -59,15 +62,22 @@ import OpenGL.GLES3 as gl
 renderer = graphics.get_renderer().KaraokeRenderer(display)
 layout = layout.SongLayout(s, list(s.variants.keys())[opts.variant], renderer)
 
-# Use mpv to get duration only
-mpv = mpvplayer.Player(display, rendering=True)
+# Get duration of the audio path
+mpv = mpvplayer.Player(display)
 mpv.load_song(s)
 duration = mpv.duration or mpv.file_duration
+
+# Now run for rendering using only video
+mpv = mpvplayer.Player(display, rendering=True)
+mpv.load_song(s)
+
 if not opts.video:
     mpv.shutdown()
 print("Song duration: %f" % duration)
+if opts.length:
+    duration = min(duration, opts.length)
 
-song_time = 0
+song_time = -mpv.offset
 
 pre_opts = []
 post_opts = opts.ffmpeg_opts
@@ -84,8 +94,27 @@ args = [
     "-pix_fmt", "rgba",
     "-s", "%dx%d" % (opts.width, opts.height),
     "-r", "%f" % opts.fps,
+]
+
+if mpv.offset > 0:
+    args += [ "-ss", str(mpv.offset) ]
+
+args += [
     "-i", "pipe:",
-] + pre_opts + [
+]
+
+if opts.audio:
+    if mpv.offset < 0:
+        args += [ "-ss", str(-mpv.offset) ]
+
+    args += [
+        "-i", s.audiofile,
+        "-map", "0",
+        "-map", "1:a",
+    ]
+
+args += pre_opts + [
+    "-t", str(duration + mpv.offset),
     "-vf", "vflip,unpremultiply=inplace=1" if not opts.video else "vflip",
 ] + post_opts
 
