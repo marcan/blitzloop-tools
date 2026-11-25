@@ -260,6 +260,8 @@ class Joy02Importer(object):
                 speed = event.payload[1]
                 if event_id == self.EV_SCROLL_SETSPEED:
                     speed *= 10
+            elif event_id not in (4, 5, 6, 23, 30, 31, 33):
+                print("UNKNOWN EVENT:", event_id)
 
         for i in beats:
             times.append(t1 + (i - x1) / speed)
