@@ -54,7 +54,7 @@ Joy02File = Struct(
                             "count" / Int16ul,
                             Struct(
                                 "font" / Int8ul,
-                                "char" / SJISString(1),
+                                "char" / Switch(this.font, { 0: SJISString(1), 1:KSString(1), 2:GBKString(1) }),
                                 "width" / Int16ul
                             )
                         ),

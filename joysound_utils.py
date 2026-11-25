@@ -81,6 +81,34 @@ class SJIS16StringAdapter(Adapter):
 def SJISString(count):
     return SJIS16StringAdapter(Array(count, Int16ul))
 
+class GBKStringAdapter(Adapter):
+    def _decode(self, obj, context, path):
+        sj = bytearray()
+        for c in obj:
+            if c < 0xff:
+                sj.append(c)
+            else:
+                sj.append(c >> 8)
+                sj.append(c & 0xff)
+        return sj.decode("gbk")
+
+def GBKString(count):
+    return GBKStringAdapter(Array(count, Int16ul))
+
+class KSStringAdapter(Adapter):
+    def _decode(self, obj, context, path):
+        sj = bytearray()
+        for c in obj:
+            if c < 0xff:
+                sj.append(c)
+            else:
+                sj.append(c >> 8)
+                sj.append(c & 0xff)
+        return sj.decode("euc_kr")
+
+def KSString(count):
+    return KSStringAdapter(Array(count, Int16ul))
+
 class RGB15Adapter(Adapter):
     def _encode(self, obj, context, path):
         return (obj[0] << 10 | obj[1] << 5 | obj[2])

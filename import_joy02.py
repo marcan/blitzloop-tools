@@ -12,6 +12,8 @@ def is_furiganable(char):
     code = ord(char)
     if 0x3040 <= code <= 0x30ff: # Kana
         return False
+    if 0xff5b <= code <= 0xff9f: # Half-width Kana & adjacent
+        return False
     return True
 
 def escape(char):
@@ -154,6 +156,9 @@ class Joy02Importer(object):
                     new_chars[-1].needs_group = True
                 elif (char.uchar in JapaneseMolecule.COMBINE_CHARS
                     and new_chars and not new_chars[-1].furi):
+                    new_chars[-1].uchar += char.uchar
+                    new_chars[-1].right = char.right
+                elif len(new_chars) == 1 and all(i in JapaneseMolecule.COMBINE_CHARS for i in new_chars[0].uchar):
                     new_chars[-1].uchar += char.uchar
                     new_chars[-1].right = char.right
                 else:
